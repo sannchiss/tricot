@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FedEx API Integration Portal — Tricot Chile</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        fedex: {
+                            purple: '#4D148C',
+                            purpleDark: '#360D63',
+                            purpleLight: '#F4EFFA',
+                            orange: '#FF6200',
+                            orangeHover: '#E55800',
+                            orangeLight: '#FFF3EB',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Personalización de scrollbar y animaciones sutiles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(77, 20, 140, 0.25);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(77, 20, 140, 0);
+            }
+        }
+
+        .step-active-glow {
+            animation: pulseGlow 2.5s infinite;
+        }
+
+        .json-key { color: #93c5fd; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fca5a5; }
+        .json-boolean { color: #fde047; }
+        .json-highlight {
+            background-color: rgba(255, 98, 0, 0.22);
+            border-left: 3px solid #FF6200;
+            display: inline-block;
+            width: 100%;
+            padding-left: 6px;
+            margin-left: -9px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-fedex-purple selection:text-white">
+
+    <!-- Notificación Toast (Reemplazo seguro de alert) -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-700 flex items-center gap-3 text-sm font-medium">
+            <span class="w-2.5 h-2.5 rounded-full bg-fedex-orange"></span>
+            <span id="toast-message">Copiado al portapapeles</span>
+        </div>
+    </div>
+
+    <!-- 1. HEADER CORPORATIVO -->
+    <header class="bg-gradient-to-r from-fedex-purpleDark via-fedex-purple to-[#5E1BA8] text-white border-b border-purple-900/40 sticky top-0 z-40 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex items-start sm:items-center gap-3.5">
+                    <!-- Logo Vectorial FedEx Style -->
+                    <div class="bg-white px-3 py-2 rounded-xl shadow-inner flex items-center select-none shrink-0">
+                        <span class="font-extrabold text-xl tracking-tighter text-fedex-purple">Fed</span><span class="font-extrabold text-xl tracking-tighter text-fedex-orange">Ex</span>
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">
+                                FedEx API Integration Portal — <span class="text-fedex-orange">Tricot Chile</span>
+                            </h1>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/15 text-purple-100 border border-white/20">
+                                Arquitectura Dual-Track OAuth (FAPI LAC + Global APIs)
+                            </span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-purple-200 mt-0.5">
+                            Flujo de Emisión Unificada (<code class="text-orange-300 font-mono text-xs">PSDR</code> / <code class="text-orange-300 font-mono text-xs">RETURN_DOCUMENTS</code>), <code class="text-orange-300 font-mono text-xs">AddDocuments</code>, <code class="text-orange-300 font-mono text-xs">Get Documents (Cedible)</code> y <code class="text-orange-300 font-mono text-xs">POD</code>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Acciones rápidas del header -->
+                <div class="flex items-center gap-2.5 self-start md:self-auto">
+                    <button onclick="scrollToSection('pendiente-tricot')" class="px-3 py-2 rounded-lg text-xs font-semibold bg-fedex-orange hover:bg-fedex-orangeHover text-white shadow-sm transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        Definición Etiqueta 10x15 cm
+                    </button>
+                    <button onclick="scrollToSection('comparativa')" class="px-3 py-2 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition">
+                        Tabla Comparativa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Banner de Contexto Operativo Tricot Chile + Explicación Dual-Track -->
+        <section class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div class="space-y-1.5 max-w-3xl">
+                    <div class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-fedex-purple">
+                        <span class="w-2 h-2 rounded-full bg-fedex-orange"></span>
+                        Arquitectura de Integración Logística — CD Tricot Chile
+                    </div>
+                    <h2 class="text-base sm:text-lg font-bold text-slate-900">
+                        Flujo Unificado de Etiquetado (<code class="font-mono text-xs bg-orange-50 text-fedex-orange px-1.5 py-0.5 rounded border border-orange-200">PSDR</code>), Registro Diferido (<code class="font-mono text-xs bg-purple-50 text-fedex-purple px-1.5 py-0.5 rounded border border-purple-200">AddDocuments</code>), Cedible Digitalizado y POD
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                        Esta plataforma separa claramente los dos dominios de autenticación de FedEx: el entorno regional <strong>FAPI Dojo / LAC</strong> (<code class="font-mono text-xs bg-slate-100 px-1 py-0.5 rounded">ws.fedex.com/LAC/ServicesAPI</code> vía <strong>Basic Auth</strong>) para etiquetado unificado <code class="font-mono text-xs">PSDR</code>, registro diferido de Guía de Carga (<code class="font-mono text-xs">AddDocuments</code>), anulación previa a retiro (<code class="font-mono text-xs">Cancel Ship</code>) y descarga digitalizada del documento cedible rendido (<code class="font-mono text-xs">cdrm/api/docs/getDocuments</code>); y el entorno <strong>APIs Globales</strong> (<code class="font-mono text-xs bg-slate-100 px-1 py-0.5 rounded">apis.fedex.com</code> vía <strong>Client Credentials</strong>) para trazabilidad y descarga de POD.
+                    </p>
+                </div>
+
+                <!-- Tarjetas resumen de los 2 carriles -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0 lg:w-[420px]">
+                    <div class="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider text-fedex-purple">Carril A • FAPI LAC</span>
+                            <span class="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-purple-200 text-fedex-purple font-semibold">Basic Auth</span>
+                        </div>
+                        <p class="text-xs text-slate-700 font-medium">Ship (PSDR), AddDocuments, Cancel (Pre-Retiro) &amp; GetDocs CDRM (Cedible).</p>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-sky-50/70 border border-sky-200 space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider text-sky-700">Carril B • Global APIs</span>
+                            <span class="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-sky-200 text-sky-700 font-semibold">OAuth Client</span>
+                        </div>
+                        <p class="text-xs text-slate-700 font-medium">Tracking en tiempo real (AWB) y descarga oficial de POD (PDF/PNG).</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. DIAGRAMA DE ARQUITECTURA DUAL-TRACK Y FLUJO DE PROCESOS INTERACTIVO (8 ETAPAS) -->
+        <section class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-fedex-orange shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+                        Diagrama Interactivo Dual-Track (8 Etapas por Dominio)
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-1">Selecciona cualquier etapa en el <strong>Carril A (Operativo LAC &amp; Cedible)</strong> o <strong>Carril B (Trazabilidad Global &amp; POD)</strong> para inspeccionar su contrato y cURL.</p>
+                </div>
+                <div class="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                    <button onclick="prevStep()" class="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition">
+                        ← Anterior
+                    </button>
+                    <button onclick="nextStep()" class="px-3 py-1.5 rounded-lg bg-fedex-purple hover:bg-fedex-purpleDark text-white text-xs font-semibold transition">
+                        Siguiente →
+                    </button>
+                </div>
+            </div>
+
+            <!-- Contenedor Apilado de Carriles (100% fluido y responsive sin colisiones horizontales) -->
+            <div class="space-y-5">
+                <!-- CARRIL A: OPERATIVO FAPI DOJO / LAC -->
+                <div class="bg-purple-50/40 border border-purple-200/80 rounded-2xl p-4 sm:p-5 space-y-4">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-fedex-purple text-white tracking-wide shrink-0">CARRIL A</span>
+                            <span class="text-xs sm:text-sm font-bold text-slate-900">Dominio Operativo &amp; Documental FAPI Dojo / LAC</span>
+                            <code class="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-purple-200 text-fedex-purple break-all">ws.fedex.com/LAC/ServicesAPI</code>
+                        </div>
+                        <span class="text-[11px] font-mono font-semibold text-fedex-purple bg-white px-3 py-1 rounded-full border border-purple-200 self-start md:self-auto">
+                            Auth: Basic → [BEARER_TOKEN_FAPI_LAC]
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
+                        <!-- Paso 1A -->
+                        <button onclick="selectStep(1)" id="step-card-1" class="step-card text-left p-4 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-white border-slate-200 hover:border-fedex-purple/50 min-w-0">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span id="step-badge-1" class="px-2.5 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600 shrink-0">1A</span>
+                                <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-purple-100 text-fedex-purple truncate">BASIC AUTH</span>
+                            </div>
+                            <div class="space-y-1 min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-fedex-purple">OAUTH FAPI LAC</div>
+                                <div class="text-sm font-bold text-slate-900 leading-snug">Token Operativo LAC</div>
+                                <p class="text-xs text-slate-500 leading-relaxed break-words">POST <code class="text-[11px] font-mono text-slate-700">/oauth/token</code> con Cookie <code class="text-[11px] font-mono text-slate-700">siteDC=las</code>.</p>
+                            </div>
+                        </button>
+
+                        <!-- Paso 2 -->
+                        <button onclick="selectStep(2)" id="step-card-2" class="step-card text-left p-4 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-white border-slate-200 hover:border-fedex-purple/50 min-w-0">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span id="step-badge-2" class="px-2.5 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600 shrink-0">2</span>
+                                <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-orange-100 text-fedex-orange truncate">PSDR / RET_DOC</span>
+                            </div>
+                            <div class="space-y-1 min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-fedex-purple">SHIP API (LAC)</div>
+                                <div class="text-sm font-bold text-slate-900 leading-snug">Etiqueta Unificada</div>
+                                <p class="text-xs text-slate-500 leading-relaxed break-words">Emisión ZPL/PNG con <code class="text-[11px] font-mono text-slate-700">PSDR</code> o <code class="text-[11px] font-mono text-slate-700">RETURN_DOCUMENTS</code>.</p>
+                            </div>
+                        </button>
+
+                        <!-- Paso 3 -->
+                        <button onclick="selectStep(3)" id="step-card-3" class="step-card text-left p-4 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-white border-slate-200 hover:border-fedex-purple/50 min-w-0">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span id="step-badge-3" class="px-2.5 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600 shrink-0">3</span>
+                                <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-orange-100 text-fedex-orange truncate">POST-SHIP</span>
+                            </div>
+                            <div class="space-y-1 min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-fedex-orange">ADD DOCUMENTS</div>
+                                <div class="text-sm font-bold text-slate-900 leading-snug">Vínculo Guía Carga</div>
+                                <p class="text-xs text-slate-500 leading-relaxed break-words">Asociación posterior de CI, CINV, NST, SCS al Master AWB.</p>
+                            </div>
+                        </button>
+
+                        <!-- Paso 4A: Cancel Ship -->
+                        <button onclick="selectStep(4)" id="step-card-4" class="step-card text-left p-4 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-white border-slate-200 hover:border-fedex-purple/50 min-w-0">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span id="step-badge-4" class="px-2.5 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600 shrink-0">4A</span>
+                                <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-red-50 text-red-600 truncate">PRE-RETIRO</span>
+                            </div>
+                            <div class="space-y-1 min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-fedex-purple">CANCEL SHIP (LAC)</div>
+                                <div class="text-sm font-bold text-slate-900 leading-snug">Anulación Guía</div>
+                                <p class="text-xs text-slate-500 leading-relaxed break-words">Contingencia previa a recolección física del transporte.</p>
+                            </div>
+                        </button>
+
+                        <!-- Paso 4B: Get Documents (Cedible Digitalizado) -->
+                        <button onclick="selectStep(5)" id="step-card-5" class="step-card text-left p-4 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-white border-slate-200 hover:border-fedex-purple/50 min-w-0 sm:col-span-2 lg:col-span-1">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span id="step-badge-5" class="px-2.5 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600 shrink-0">4B</span>
+                                <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 truncate">POST-ENTREGA</span>
+                            </div>
+                            <div class="space-y-1 min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">GET DOCUMENTS (CDRM)</div>
+                                <div class="text-sm font-bold text-slate-900 leading-snug">Cedible Digitalizado</div>
+                                <p class="text-xs text-slate-500 leading-relaxed break-words">Descarga de factura/guía escaneada tras entrega (<code class="text-[11px] font-mono text-slate-700">AWB</code>).</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CARRIL B: TRAZABILIDAD Y POD GLOBAL -->
+                <div class="bg-sky-50/50 border border-sky-200/80 rounded-2xl p-4 sm:p-5 space-y-4">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="px-2.5 py-1 rounded-md text-[11px] font-extrabold bg-sky-700 text-white tracking-wide shrink-0">CARRIL B</span>
+                            <span class="text-xs sm:text-sm font-bold text-slate-900">Dominio Trazabilidad &amp; Documentos Global</span>
+                            <code class="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-sky-200 text-sky-700">apis.fedex.com</code>
+                        </div>
+                        <span class="text-[11px] font-mono font-semibold text-sky-800 bg-white px-3 py-1 rounded-full border border-sky-200 self-start md:self-auto">
+                            Auth: client_credentials → [BEARER_TOKEN_TRACK_APIS]
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                        <!-- Paso 1B -->
+                        <button onclick="selectStep(6)" id="step-card-6" class="step-card text-left p-4 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-white border-slate-200 hover:border-sky-500/50 min-w-0">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span id="step-badge-6" class="px-2.5 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600 shrink-0">1B</span>
+                                <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-sky-100 text-sky-700 truncate">CLIENT_CREDS</span>
+                            </div>
+                            <div class="space-y-1 min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-sky-700">OAUTH APIS GLOBAL</div>
+                                <div class="text-sm font-bold text-slate-900 leading-snug">Token Trazabilidad</div>
+                                <p class="text-xs text-slate-500 leading-relaxed break-words">POST <code class="text-[11px] font-mono text-slate-700">/oauth/token</code> con <code class="text-[11px] font-mono text-slate-700">client_id</code>, <code class="text-[11px] font-mono text-slate-700">client_secret</code> y <code class="text-[11px] font-mono text-slate-700">siteDC=atl</code>.</p>
+                            </div>
+                        </button>
+
+                        <!-- Paso 5 -->
+                        <button onclick="selectStep(7)" id="step-card-7" class="step-card text-left p-4 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-white border-slate-200 hover:border-sky-500/50 min-w-0">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span id="step-badge-7" class="px-2.5 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600 shrink-0">5</span>
+                                <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-sky-100 text-sky-700 truncate">TRACK API</span>
+                            </div>
+                            <div class="space-y-1 min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-sky-700">TRACKING NUMBERS</div>
+                                <div class="text-sm font-bold text-slate-900 leading-snug">Hitos AWB / Transporte</div>
+                                <p class="text-xs text-slate-500 leading-relaxed break-words">Consulta eventos <code class="text-[11px] font-mono text-slate-700">ON_SHIPMENT</code>, <code class="text-[11px] font-mono text-slate-700">ON_TENDER</code> y entrega (<code class="text-[11px] font-mono text-slate-700">DL</code>).</p>
+                            </div>
+                        </button>
+
+                        <!-- Paso 6 -->
+                        <button onclick="selectStep(8)" id="step-card-8" class="step-card text-left p-4 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-white border-slate-200 hover:border-sky-500/50 min-w-0">
+                            <div class="flex items-center justify-between gap-2 mb-3">
+                                <span id="step-badge-8" class="px-2.5 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600 shrink-0">6</span>
+                                <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 truncate">POD PDF / PNG</span>
+                            </div>
+                            <div class="space-y-1 min-w-0">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-sky-700">TRACKING DOCUMENTS</div>
+                                <div class="text-sm font-bold text-slate-900 leading-snug">Captura POD (Comprobante)</div>
+                                <p class="text-xs text-slate-500 leading-relaxed break-words">Descarga de <code class="text-[11px] font-mono text-slate-700">SIGNATURE_PROOF_OF_DELIVERY</code> en formato PDF o PNG.</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualizador SVG de Arquitectura Dual-Track Específica Tricot Chile -->
+            <div class="bg-slate-900 rounded-xl p-4 sm:p-5 text-white overflow-x-auto border border-slate-800">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        Mapa de Arquitectura Dual-Track: WMS / ERP Tricot Chile ↔ FedEx
+                    </span>
+                    <span id="diagram-active-label" class="text-xs font-mono text-fedex-orange font-semibold">Paso Activo: 2. Ship API (Etiqueta Unificada)</span>
+                </div>
+                <svg class="w-full min-w-[960px] h-80" viewBox="0 0 1060 315" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#A855F7"/>
+                        </marker>
+                        <marker id="arrow-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#FF6200"/>
+                        </marker>
+                        <marker id="arrow-slate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#94A3B8"/>
+                        </marker>
+                        <marker id="arrow-sky" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#38BDF8"/>
+                        </marker>
+                        <marker id="arrow-emerald" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#34D399"/>
+                        </marker>
+                    </defs>
+
+                    <!-- Fondo Swimlane A (FAPI LAC) -->
+                    <rect x="6" y="6" width="1048" height="170" rx="12" fill="#1E1B4B" fill-opacity="0.45" stroke="#4C1D95" stroke-width="1.2"/>
+                    <text x="18" y="23" fill="#C084FC" font-size="9.5" font-weight="800" font-family="Inter">CARRIL A — DOMINIO OPERATIVO FAPI DOJO / LAC (ws.fedex.com/LAC/ServicesAPI) • Authorization: Basic</text>
+
+                    <!-- Fondo Swimlane B (APIS Global) -->
+                    <rect x="6" y="192" width="1048" height="116" rx="12" fill="#0C4A6E" fill-opacity="0.32" stroke="#0369A1" stroke-width="1.2"/>
+                    <text x="18" y="209" fill="#38BDF8" font-size="9.5" font-weight="800" font-family="Inter">CARRIL B — DOMINIO TRAZABILIDAD &amp; POD GLOBAL (apis.fedex.com) • OAuth client_credentials</text>
+
+                    <!-- CONEXIONES CARRIL A (Sin solapamientos ni choques) -->
+                    <!-- 1A -> 2 -->
+                    <path d="M155 104 H185" stroke="#A855F7" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow-purple)"/>
+
+                    <!-- 2 -> Mod A (arriba) -->
+                    <path d="M350 88 H372 V74 H389" stroke="#94A3B8" stroke-width="1.8" marker-end="url(#arrow-slate)"/>
+
+                    <!-- 2 -> Mod B (abajo) -->
+                    <path d="M350 118 H372 V132 H389" stroke="#FF6200" stroke-width="2.2" marker-end="url(#arrow-orange)"/>
+
+                    <!-- Canal superior libre para Ruta directa Mod A -> 4A (Cancel) -->
+                    <path d="M555 64 H574 V38 H860 V48" stroke="#94A3B8" stroke-width="1.7" stroke-dasharray="4 3" marker-end="url(#arrow-slate)"/>
+                    <rect x="615" y="29" width="175" height="16" rx="4" fill="#0F172A" stroke="#475569" stroke-width="1"/>
+                    <text x="624" y="40" fill="#CBD5E1" font-size="8" font-weight="600" font-family="Inter">Ruta directa (sin AddDocs)</text>
+
+                    <!-- Ruta Mod B (PSDR) -> 3. AddDocuments -->
+                    <path d="M555 132 H595" stroke="#FF6200" stroke-width="2.2" marker-end="url(#arrow-orange)"/>
+
+                    <!-- Salida desde 3. AddDocuments hacia 4A (Pre-Retiro) y 4B (Post-Entrega Cedible) -->
+                    <path d="M745 96 H764 V77 H781" stroke="#FDA4AF" stroke-width="1.8" stroke-dasharray="3 3" marker-end="url(#arrow-purple)"/>
+                    <path d="M745 128 H764 V139 H781" stroke="#34D399" stroke-width="2.2" marker-end="url(#arrow-emerald)"/>
+
+                    <!-- Conexión Cross-Track limpia entre Swimlane A y Swimlane B -->
+                    <path d="M272 146 V183 H435 V215" stroke="#FF6200" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrow-orange)"/>
+                    <rect x="280" y="175" width="168" height="17" rx="4" fill="#0F172A" stroke="#FF6200" stroke-width="1"/>
+                    <text x="288" y="186.5" fill="#FDBA74" font-size="8.5" font-weight="700" font-family="JetBrains Mono">Comparte [MASTER_TRACKING]</text>
+
+                    <!-- Conexiones Carril B -->
+                    <path d="M225 256 H335" stroke="#38BDF8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow-sky)"/>
+                    <path d="M545 256 H615" stroke="#38BDF8" stroke-width="2.2" marker-end="url(#arrow-sky)"/>
+                    <path d="M225 256 H335" stroke="#38BDF8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow-sky)"/>
+
+                    <!-- NODO 1A: OAuth Basic Auth -->
+                    <g onclick="selectStep(1)" class="cursor-pointer">
+                        <rect id="svg-node-1" x="18" y="64" width="137" height="80" rx="9" fill="#1E293B" stroke="#7E22CE" stroke-width="2"/>
+                        <text x="27" y="82" fill="#C084FC" font-size="8.5" font-weight="700" font-family="Inter">1A. OAUTH BASIC AUTH</text>
+                        <text x="27" y="98" fill="#FFFFFF" font-size="11" font-weight="700" font-family="Inter">Token FAPI LAC</text>
+                        <text x="27" y="113" fill="#CBD5E1" font-size="8" font-family="JetBrains Mono">Cookie: siteDC=las</text>
+                        <text x="27" y="128" fill="#94A3B8" font-size="8" font-family="JetBrains Mono">[BEARER_FAPI_LAC]</text>
+                    </g>
+
+                    <!-- NODO 2: Ship API -->
+                    <g onclick="selectStep(2)" class="cursor-pointer">
+                        <rect id="svg-node-2" x="193" y="62" width="157" height="84" rx="9" fill="#1E293B" stroke="#FF6200" stroke-width="2.5"/>
+                        <text x="203" y="80" fill="#FF6200" font-size="8.5" font-weight="700" font-family="Inter">2. SHIP API (LAC)</text>
+                        <text x="203" y="96" fill="#FFFFFF" font-size="11" font-weight="700" font-family="Inter">Etiqueta 10×15 cm</text>
+                        <text x="203" y="111" fill="#CBD5E1" font-size="8.5" font-family="Inter">Emite Master Tracking</text>
+                        <text x="203" y="126" fill="#94A3B8" font-size="8" font-family="JetBrains Mono">ZPL / PNG Unificada</text>
+                    </g>
+
+                    <!-- Modalidad A: RETURN_DOCUMENTS -->
+                    <g onclick="selectStep(2); switchShipTab('return')" class="cursor-pointer">
+                        <rect x="397" y="54" width="158" height="42" rx="7" fill="#0F172A" stroke="#94A3B8" stroke-width="1.5"/>
+                        <text x="405" y="70" fill="#CBD5E1" font-size="8" font-weight="700" font-family="Inter">MOD A: RETURN_DOCUMENTS</text>
+                        <text x="405" y="85" fill="#E2E8F0" font-size="8" font-family="JetBrains Mono">Síncrono (folio previo)</text>
+                    </g>
+
+                    <!-- Modalidad B: PSDR -->
+                    <g onclick="selectStep(2); switchShipTab('psdr')" class="cursor-pointer">
+                        <rect x="397" y="110" width="158" height="42" rx="7" fill="#2E1065" stroke="#FF6200" stroke-width="2"/>
+                        <text x="405" y="126" fill="#FF6200" font-size="8" font-weight="700" font-family="Inter">MOD B: PSDR (TRICOT)</text>
+                        <text x="405" y="141" fill="#FFFFFF" font-size="8" font-family="JetBrains Mono">documentsToReturn: []</text>
+                    </g>
+
+                    <!-- NODO 3: AddDocuments -->
+                    <g onclick="selectStep(3)" class="cursor-pointer">
+                        <rect id="svg-node-3" x="603" y="70" width="142" height="82" rx="9" fill="#1E293B" stroke="#A855F7" stroke-width="2"/>
+                        <text x="612" y="87" fill="#C084FC" font-size="8.5" font-weight="700" font-family="Inter">3. ADD DOCUMENTS</text>
+                        <text x="612" y="103" fill="#FFFFFF" font-size="11" font-weight="700" font-family="Inter">Guía de Carga</text>
+                        <text x="612" y="118" fill="#CBD5E1" font-size="8" font-family="JetBrains Mono">CI / CINV / NST / SCS</text>
+                        <text x="612" y="133" fill="#94A3B8" font-size="8" font-family="Inter">Post-etiquetado WMS</text>
+                    </g>
+
+                    <!-- NODO 4A: Cancel Ship (Pre-retiro) -->
+                    <g onclick="selectStep(4)" class="cursor-pointer">
+                        <rect id="svg-node-4" x="789" y="55" width="145" height="46" rx="8" fill="#1E293B" stroke="#475569" stroke-width="1.8"/>
+                        <text x="798" y="71" fill="#FDA4AF" font-size="8" font-weight="700" font-family="Inter">4A. CANCEL SHIP (PRE-RETIRO)</text>
+                        <text x="798" y="87" fill="#FFFFFF" font-size="9.5" font-weight="700" font-family="Inter">Anulación Guía (PUT)</text>
+                    </g>
+
+                    <!-- NODO 4B: Get Documents Cedible (Post-entrega y escaneo) -->
+                    <g onclick="selectStep(5)" class="cursor-pointer">
+                        <rect id="svg-node-5" x="789" y="112" width="252" height="54" rx="8" fill="#064E3B" fill-opacity="0.6" stroke="#10B981" stroke-width="2"/>
+                        <text x="798" y="128" fill="#34D399" font-size="8" font-weight="800" font-family="Inter">4B. GET DOCUMENTS CDRM (POST-ENTREGA)</text>
+                        <text x="798" y="143" fill="#FFFFFF" font-size="10" font-weight="700" font-family="Inter">Cedible Digitalizado (Guía / Factura)</text>
+                        <text x="798" y="157" fill="#A7F3D0" font-size="8" font-family="JetBrains Mono">/cdrm/api/docs/getDocuments</text>
+                    </g>
+
+                    <!-- NODO 1B: OAuth Global Client Credentials -->
+                    <g onclick="selectStep(6)" class="cursor-pointer">
+                        <rect id="svg-node-6" x="18" y="222" width="207" height="72" rx="9" fill="#1E293B" stroke="#0284C7" stroke-width="2"/>
+                        <text x="29" y="239" fill="#38BDF8" font-size="8.5" font-weight="700" font-family="Inter">1B. OAUTH CLIENT CREDENTIALS</text>
+                        <text x="29" y="255" fill="#FFFFFF" font-size="11" font-weight="700" font-family="Inter">Token Trazabilidad</text>
+                        <text x="29" y="270" fill="#CBD5E1" font-size="8" font-family="JetBrains Mono">siteDC=atl • client_id/secret</text>
+                        <text x="29" y="284" fill="#7DD3FC" font-size="8" font-family="JetBrains Mono">[BEARER_TOKEN_TRACK_APIS]</text>
+                    </g>
+
+                    <!-- NODO 5: Tracking Numbers -->
+                    <g onclick="selectStep(7)" class="cursor-pointer">
+                        <rect id="svg-node-7" x="343" y="222" width="202" height="72" rx="9" fill="#1E293B" stroke="#0284C7" stroke-width="2"/>
+                        <text x="354" y="239" fill="#38BDF8" font-size="8.5" font-weight="700" font-family="Inter">5. TRACKING API</text>
+                        <text x="354" y="255" fill="#FFFFFF" font-size="11" font-weight="700" font-family="Inter">Hitos AWB / Transporte</text>
+                        <text x="354" y="270" fill="#CBD5E1" font-size="8" font-family="JetBrains Mono">/track/v1/trackingnumbers</text>
+                        <text x="354" y="284" fill="#94A3B8" font-size="8" font-family="Inter">ON_SHIPMENT • ON_DELIVERY (DL)</text>
+                    </g>
+
+                    <!-- NODO 6: Tracking Documents (POD) -->
+                    <g onclick="selectStep(8)" class="cursor-pointer">
+                        <rect id="svg-node-8" x="623" y="222" width="418" height="72" rx="9" fill="#1E293B" stroke="#10B981" stroke-width="2"/>
+                        <text x="635" y="239" fill="#34D399" font-size="8.5" font-weight="700" font-family="Inter">6. CAPTURE POD / TRACKING DOCUMENTS</text>
+                        <text x="635" y="255" fill="#FFFFFF" font-size="11" font-weight="700" font-family="Inter">SIGNATURE_PROOF_OF_DELIVERY (Comprobante de Entrega)</text>
+                        <text x="635" y="270" fill="#CBD5E1" font-size="8" font-family="JetBrains Mono">POST /track/v1/trackingdocuments</text>
+                        <text x="635" y="284" fill="#6EE7B7" font-size="8" font-family="Inter">Descarga PDF (FDXE + Account) o PNG</text>
+                    </g>
+                </svg>
+            </div>
+        </section>
+
+        <!-- 3. EXPLORADOR INTERACTIVO DE PASOS (DETALLE OPERATIVO + PAYLOAD + RESPONSE) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- Columna Izquierda: Regla de Negocio, Endpoint y Parámetros Clave (5 cols) -->
+            <div class="lg:col-span-5 bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <span id="detail-step-pill" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-fedex-purple text-white">
+                        PASO 2 • CARRIL A
+                    </span>
+                    <span id="detail-track-badge" class="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 text-fedex-purple border border-purple-200">
+                        CARRIL A: FAPI LAC • BasicAuth
+                    </span>
+                </div>
+
+                <div>
+                    <div class="font-mono text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-lg mb-2 break-all" id="detail-method-badge">
+                        POST https://ws.fedex.com/LAC/ServicesAPI/ship/v1/shipments
+                    </div>
+                    <h3 id="detail-title" class="text-xl font-bold text-slate-900">
+                        Ship API — Etiqueta Unificada + Declaración Documental
+                    </h3>
+                    <p id="detail-subtitle" class="text-xs font-medium text-fedex-orange mt-1">
+                        Soporte dual para emisión síncrona (RETURN_DOCUMENTS) y diferida (PSDR)
+                    </p>
+                </div>
+
+                <!-- Selector de Modalidad (Visible solo en Paso 2: Ship API) -->
+                <div id="ship-mode-selector" class="bg-slate-100 p-1.5 rounded-xl grid grid-cols-2 gap-1.5 border border-slate-200">
+                    <button onclick="switchShipTab('psdr')" id="tab-btn-psdr" class="py-2 px-3 rounded-lg text-xs font-bold transition-all bg-fedex-purple text-white shadow-sm flex flex-col items-center">
+                        <span>Modalidad B: PSDR</span>
+                        <span class="text-[10px] font-normal opacity-90">Recomendado Tricot (Diferido)</span>
+                    </button>
+                    <button onclick="switchShipTab('return')" id="tab-btn-return" class="py-2 px-3 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex flex-col items-center">
+                        <span>Modalidad A: RETURN_DOCUMENTS</span>
+                        <span class="text-[10px] font-normal opacity-80">Declaración Síncrona</span>
+                    </button>
+                </div>
+
+                <!-- Selector de Formato POD (Visible solo en Paso 6 / índice 8: Capture POD) -->
+                <div id="pod-mode-selector" class="hidden bg-sky-50 p-1.5 rounded-xl grid grid-cols-2 gap-1.5 border border-sky-200">
+                    <button onclick="switchPodTab('pdf')" id="tab-btn-pod-pdf" class="py-2 px-3 rounded-lg text-xs font-bold transition-all bg-sky-700 text-white shadow-sm flex flex-col items-center">
+                        <span>Formato PDF (Completo)</span>
+                        <span class="text-[10px] font-normal opacity-90">Con carrierCode + accountNumber</span>
+                    </button>
+                    <button onclick="switchPodTab('png')" id="tab-btn-pod-png" class="py-2 px-3 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex flex-col items-center">
+                        <span>Formato PNG (Simplificado)</span>
+                        <span class="text-[10px] font-normal opacity-80">Solo trackingNumber</span>
+                    </button>
+                </div>
+
+                <!-- Descripción Operativa -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Regla de Negocio — Tricot Chile</h4>
+                    <div id="detail-business-rule" class="text-sm text-slate-700 leading-relaxed space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                        <!-- Contenido dinámico -->
+                    </div>
+                </div>
+
+                <!-- Hallazgos y Validaciones Técnicas -->
+                <div class="space-y-2.5">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Validaciones Críticas del Contrato</h4>
+                    <ul id="detail-validations" class="space-y-2 text-xs text-slate-700">
+                        <!-- Lista dinámica -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Visor de Código JSON, cURL y Simulador de Respuesta 200 OK (7 cols) -->
+            <div class="lg:col-span-7 bg-slate-900 rounded-2xl border border-slate-800 shadow-lg overflow-hidden flex flex-col">
+                <!-- Barra superior del editor -->
+                <div class="bg-slate-950 px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="switchCodeView('request')" id="view-btn-request" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-fedex-purple text-white transition">
+                            Request Payload / Form Data
+                        </button>
+                        <button onclick="switchCodeView('response')" id="view-btn-response" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            Simular Response 200 OK
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="copyCurrentJson()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition flex items-center gap-1.5 border border-slate-700">
+                            <svg class="w-3.5 h-3.5 text-fedex-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                            Copiar Payload
+                        </button>
+                        <button onclick="copyCurrentCurl()" class="px-2.5 py-1.5 rounded-lg bg-fedex-orange hover:bg-fedex-orangeHover text-white text-xs font-semibold transition flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            Copiar cURL
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Banner de sanitización de credenciales -->
+                <div class="bg-slate-800/70 px-4 py-2 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-300">
+                    <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        Credenciales sanitizadas (<code class="text-amber-300">[BASIC_AUTH_BASE64]</code>, <code class="text-amber-300">[BEARER_TOKEN_FAPI_LAC]</code>, <code class="text-amber-300">[BEARER_TOKEN_TRACK_APIS]</code>)
+                    </span>
+                    <span id="code-filename" class="font-mono text-slate-400">ship_psdr_request.json</span>
+                </div>
+
+                <!-- Contenedor del Código -->
+                <div class="p-4 sm:p-5 overflow-x-auto max-h-[540px] overflow-y-auto">
+                    <pre id="code-display" class="font-mono text-xs leading-relaxed text-slate-200"></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. TABLA COMPARATIVA RÁPIDA: RETURN_DOCUMENTS vs PSDR + AddDocuments -->
+        <section id="comparativa" class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">
+                        Comparativa Operativa: <span class="text-slate-700 font-mono text-base">RETURN_DOCUMENTS</span> vs <span class="text-fedex-purple font-mono text-base">PSDR + AddDocuments</span>
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Guía de decisión técnica para la integración entre el WMS/ERP de Tricot Chile y FedEx.</p>
+                </div>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-50 text-fedex-orange border border-orange-200 self-start">
+                    Estándar Recomendado: PSDR + AddDocuments
+                </span>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-600">
+                            <th class="py-3.5 px-4">Criterio de Evaluación</th>
+                            <th class="py-3.5 px-4">Modalidad A: <code class="text-slate-800">RETURN_DOCUMENTS</code></th>
+                            <th class="py-3.5 px-4 bg-purple-50/60 text-fedex-purple">Modalidad B: <code class="text-fedex-purple">PSDR + AddDocuments</code> (Tricot)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 text-xs sm:text-sm">
+                        <tr class="hover:bg-slate-50/80">
+                            <td class="py-3.5 px-4 font-semibold text-slate-900">Momento de declaración</td>
+                            <td class="py-3.5 px-4 text-slate-600"><strong>Síncrono:</strong> Al momento exacto de invocar <code class="font-mono text-xs bg-slate-100 px-1 py-0.5 rounded">Ship API</code> para crear la etiqueta.</td>
+                            <td class="py-3.5 px-4 text-slate-700 bg-purple-50/30"><strong>Asíncrono / Diferido:</strong> Se etiqueta primero con <code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 py-0.5 rounded">PSDR</code> y los folios se envían después vía <code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 py-0.5 rounded">AddDocuments</code>.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80">
+                            <td class="py-3.5 px-4 font-semibold text-slate-900">Disponibilidad del documento</td>
+                            <td class="py-3.5 px-4 text-slate-600">El folio tributario/logístico (Guía de Despacho, Factura) debe existir previamente en el sistema origen.</td>
+                            <td class="py-3.5 px-4 text-slate-700 bg-purple-50/30">No requiere tener el folio al armar el bulto. Permite emitir la <strong>Guía de Carga</strong> al cierre de consolidación o facturación.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80">
+                            <td class="py-3.5 px-4 font-semibold text-slate-900">Impacto en bodega / WMS</td>
+                            <td class="py-3.5 px-4 text-slate-600">Puede generar cuellos de botella si el ERP aún no timbra o emite el documento tributario antes del etiquetado físico.</td>
+                            <td class="py-3.5 px-4 text-slate-700 bg-purple-50/30"><strong>Cero fricción operativa:</strong> El operario imprime la etiqueta unificada al instante para identificar los bultos en cinta/pallet.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80">
+                            <td class="py-3.5 px-4 font-semibold text-slate-900">Estructura <code class="font-mono text-xs">specialServicesRequested</code></td>
+                            <td class="py-3.5 px-4 text-slate-600"><code class="font-mono text-xs">specialServiceTypes: ["RETURN_DOCUMENTS"]</code> + arreglo <code class="font-mono text-xs">documentsToReturn</code> poblado.</td>
+                            <td class="py-3.5 px-4 text-slate-700 bg-purple-50/30"><code class="font-mono text-xs">specialServiceTypes: ["PSDR"]</code> + <code class="font-mono text-xs">documentsToReturn: []</code> vacío en Ship API; poblado luego en <code class="font-mono text-xs">AddDocuments</code>.</td>
+                        </tr>
+                        <tr class="hover:bg-slate-50/80">
+                            <td class="py-3.5 px-4 font-semibold text-slate-900">Uso recomendado en Tricot Chile</td>
+                            <td class="py-3.5 px-4 text-slate-600">Flujos puntuales donde la factura o guía ya fue emitida antes de solicitar el transporte.</td>
+                            <td class="py-3.5 px-4 text-slate-800 font-medium bg-purple-50/30"><strong>Flujo Principal CD Tricot:</strong> Etiquetado unificado de bultos + vinculación posterior de Guía de Carga (<code class="font-mono text-xs">CI</code>, <code class="font-mono text-xs">CINV</code>, <code class="font-mono text-xs">NST</code>, <code class="font-mono text-xs">SCS</code>).</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 5. PUNTO PENDIENTE / DEFINICIÓN TÉCNICA TRICOT CHILE (ETIQUETA 10x15 CM) -->
+        <section id="pendiente-tricot" class="bg-gradient-to-br from-amber-50 via-orange-50/70 to-white rounded-2xl p-5 sm:p-6 border-2 border-fedex-orange/40 shadow-sm space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-orange-200/80 pb-4">
+                <div class="flex items-start sm:items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-fedex-orange text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-[11px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-fedex-orange text-white">
+                                Acción Requerida — Tricot Chile
+                            </span>
+                            <span class="text-xs font-semibold text-amber-800">
+                                Ventana Crítica: Temporada Alta Noviembre – Diciembre 2026
+                            </span>
+                        </div>
+                        <h2 class="text-base sm:text-lg font-bold text-slate-900 mt-1">
+                            Punto Pendiente: Viabilidad de Etiqueta Unificada en Dimensiones 10x15 cm (4x6 in)
+                        </h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center">
+                <div class="lg:col-span-8 space-y-3 text-sm text-slate-700 leading-relaxed">
+                    <p>
+                        Por parte de <strong>Tricot Chile</strong> queda pendiente evaluar la <strong>viabilidad técnica y operativa</strong> para incorporar, directamente desde su <strong>sistema de inyección de etiquetado</strong>, la generación del envío hacia FedEx (<code class="font-mono text-xs bg-white px-1.5 py-0.5 rounded border border-orange-200 text-fedex-purple">Ship API - PSDR</code>) junto con la obtención e impresión de la <strong>etiqueta unificada en dimensiones 10x15 cm</strong>.
+                    </p>
+                    <p>
+                        <strong>Restricción física actual:</strong> Con las dimensiones de etiqueta que Tricot disponibiliza actualmente en su línea de impresión, <strong>no es posible alojar conjuntamente</strong> la información operativa interna de Tricot y los datos/códigos de barra exigidos por FedEx en una sola etiqueta legible.
+                    </p>
+                    <div class="bg-white/90 rounded-xl p-3.5 border border-orange-200 flex items-start gap-2.5 text-xs sm:text-sm text-slate-800">
+                        <span class="text-fedex-orange font-bold text-base leading-none mt-0.5">⏱</span>
+                        <div>
+                            <strong>Evaluación de impacto en tiempos:</strong> Tricot debe dimensionar cuánto repercute en horas de desarrollo, adecuación de insumos/impresoras térmicas y tiempos de despliegue la adopción del formato <strong>10x15 cm</strong> frente a la contingencia operativa de la <strong>temporada alta vigente (Noviembre – Diciembre 2026)</strong>.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Esquema visual comparativo de dimensión física -->
+                <div class="lg:col-span-4 bg-white rounded-xl p-4 border border-slate-200 shadow-inner flex flex-col items-center justify-center text-center space-y-2.5">
+                    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Estándar Requerido Etiqueta Unificada</div>
+                    <div class="w-36 h-48 border-2 border-dashed border-fedex-purple rounded-lg bg-purple-50/40 p-2.5 flex flex-col justify-between relative">
+                        <div class="flex items-center justify-between border-b border-purple-200 pb-1">
+                            <span class="text-[10px] font-extrabold text-slate-800">TRICOT WMS</span>
+                            <span class="text-[10px] font-extrabold text-fedex-purple">Fed<span class="text-fedex-orange">Ex</span></span>
+                        </div>
+                        <div class="space-y-1 my-auto">
+                            <div class="h-5 bg-slate-800/85 rounded-sm w-full flex items-center justify-center text-[8px] font-mono text-white tracking-widest">|||| ||| |||| |||</div>
+                            <div class="text-[9px] font-semibold text-slate-600">Datos Bulto / Destino Tricot</div>
+                            <div class="h-7 bg-slate-900 rounded-sm w-full flex items-center justify-center text-[8px] font-mono text-white tracking-widest">|||||| |||| |||||| ||</div>
+                            <div class="text-[9px] font-mono font-bold text-fedex-purple">MASTER TRACKING AWB</div>
+                        </div>
+                        <div class="text-[9px] font-bold text-fedex-orange border-t border-purple-200 pt-1">
+                            10 cm (ancho) × 15 cm (alto)
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-500">
+                        Dimensión mínima requerida para evitar truncamiento de códigos 1D/2D y datos logísticos.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer Corporativo -->
+    <footer class="border-t border-slate-200 bg-white mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-fedex-purple">FedEx Solutions Architecture</span>
+                <span>•</span>
+                <span>Portal de Integración Técnica Dual-Track — Tricot Chile</span>
+            </div>
+            <div>
+                Todos los tokens, cuentas, client_secret y hashes Base64 han sido sanitizados para fines demostrativos.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Estado global de la aplicación
+        let currentStep = 2; // Iniciamos en el Paso 2 (Ship API)
+        let currentShipTab = 'psdr'; // 'psdr' | 'return'
+        let currentPodTab = 'pdf'; // 'pdf' | 'png'
+        let currentCodeView = 'request'; // 'request' | 'response'
+
+        // Base de conocimiento de los 8 pasos del flujo Dual-Track Tricot Chile (100% sanitizado)
+        const stepsData = {
+            1: {
+                stepLabel: "PASO 1A • CARRIL A",
+                trackBadge: "CARRIL A: FAPI LAC • BasicAuth",
+                trackColor: "purple",
+                title: "OAuth Basic Auth — Token Operativo FAPI Dojo / LAC",
+                subtitle: "Obtención de Bearer Token exclusivo para Ship, AddDocuments, Cancel y Get Documents (CDRM)",
+                method: "POST https://ws.fedex.com/LAC/ServicesAPI/oauth/token",
+                filename: "oauth_fapi_lac_basic_auth.txt",
+                businessRule: `
+                    <p>El entorno operativo regional <strong>FedEx FAPI Dojo / LAC</strong> (<code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 rounded">ws.fedex.com/LAC/ServicesAPI</code>) requiere autenticación mediante <strong>Basic Auth</strong> en la cabecera HTTP y cuerpo vacío.</p>
+                    <p>El token retornado (<code class="font-mono text-xs">[BEARER_TOKEN_FAPI_LAC]</code>) habilita todas las operaciones transaccionales y documentales del <strong>Carril A</strong>: <strong>Ship API</strong> (Paso 2), <strong>AddDocuments</strong> (Paso 3), <strong>Cancel Ship</strong> (Paso 4A) y <strong>Get Documents CDRM</strong> (Paso 4B).</p>
+                `,
+                validations: [
+                    "Incluir cabecera <code>Authorization: Basic [BASIC_AUTH_BASE64]</code> (credenciales codificadas en Base64).",
+                    "Incluir cabecera <code>Cookie: siteDC=las</code> y <code>Content-Type: application/x-www-form-urlencoded</code>.",
+                    "Enviar el cuerpo (body) completamente vacío."
+                ],
+                requestPayload: {
+                    _info: "Petición HTTP POST con Body vacío (autenticación vía Header Authorization: Basic)",
+                    headers: {
+                        "Cookie": "siteDC=las",
+                        "Content-Type": "application/x-www-form-urlencoded",
+                        "Authorization": "Basic [BASIC_AUTH_BASE64]"
+                    },
+                    body: ""
+                },
+                curl: `curl --location --request POST 'https://ws.fedex.com/LAC/ServicesAPI/oauth/token' \\
+  --header 'Cookie: siteDC=las' \\
+  --header 'Content-Type: application/x-www-form-urlencoded' \\
+  --header 'Authorization: Basic [BASIC_AUTH_BASE64]' \\
+  --data ''`,
+                responsePayload: {
+                    access_token: "[BEARER_TOKEN_FAPI_LAC]",
+                    token_type: "bearer",
+                    expires_in: 3600,
+                    scope: "cdrm-autorizations read write delete"
+                }
+            },
+            2: {
+                stepLabel: "PASO 2 • CARRIL A",
+                trackBadge: "CARRIL A: FAPI LAC • BasicAuth",
+                trackColor: "purple",
+                title: "Ship API — Etiqueta Unificada & Declaración Documental",
+                subtitle: "Bifurcación operativa entre PSDR (Diferido) y RETURN_DOCUMENTS (Síncrono)",
+                method: "POST https://ws.fedex.com/LAC/ServicesAPI/ship/v1/shipments",
+                modes: {
+                    psdr: {
+                        filename: "ship_psdr_tricot_request.json",
+                        businessRule: `
+                            <p><strong>Flujo Principal Tricot Chile (Asíncrono):</strong> Cuando la estación de embalaje genera la <strong>etiqueta unificada</strong> para identificar los bultos, la Guía de Carga o Factura aún no está emitida.</p>
+                            <p>Autenticado con <code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 rounded">[BEARER_TOKEN_FAPI_LAC]</code>, se envía <code class="font-mono text-xs bg-orange-100 text-fedex-orange px-1 rounded">"PSDR"</code> en <code class="font-mono text-xs">specialServiceTypes</code> con <code class="font-mono text-xs">documentsToReturn: []</code> vacío. FedEx retorna el <strong>[MASTER_TRACKING_NUMBER]</strong> y los buffers ZPL/PNG sin detener la bodega.</p>
+                        `,
+                        validations: [
+                            "Autorizar con <code>Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]</code> del Paso 1A.",
+                            "<strong>Sintaxis de llave:</strong> Usar <code>\"customerDocsReference\"</code> sin espacios al final de la clave.",
+                            "<strong>Estándar CLP:</strong> En <code>insuranceValue.currency</code> utilizar código ISO <code>\"CLP\"</code>.",
+                            "<strong>Arreglo vacío:</strong> <code>documentsToReturn: []</code> habilita la recepción posterior vía <code>AddDocuments</code>."
+                        ],
+                        highlightKeys: ['"PSDR"', '"documentsToReturn"', '"customerDocsReference"'],
+                        requestPayload: {
+                            credential: {
+                                accountNumber: "[ACCOUNT_NUMBER]",
+                                meterNumber: "[METER_NUMBER]",
+                                wskeyUserCredential: "[WS_USER_KEY]",
+                                wspasswordUserCredential: "[WS_PASSWORD_SECRET]"
+                            },
+                            shipper: {
+                                contact: {
+                                    personName: "Centro Distribución Tricot",
+                                    phoneNumber: "56220000000",
+                                    companyName: "Tricot Chile S.A.",
+                                    email: "despachos@tricot.cl",
+                                    vatNumber: "[RUT_EMISOR_TRICOT]"
+                                },
+                                address: {
+                                    city: "Santiago",
+                                    stateOrProvinceCode: "CL",
+                                    postalCode: "8320000",
+                                    countryCode: "CL",
+                                    residential: false,
+                                    streetLine1: "Av. Vicuña Mackenna 3600",
+                                    streetLine2: "Centro de Distribución"
+                                }
+                            },
+                            recipient: {
+                                contact: {
+                                    personName: "Sucursal / Cliente Destino",
+                                    phoneNumber: "56900000000",
+                                    companyName: "Tienda Tricot Destino",
+                                    email: "recepcion@tricot.cl",
+                                    vatNumber: "[RUT_RECEPTOR]"
+                                },
+                                address: {
+                                    city: "Santiago",
+                                    stateOrProvinceCode: "CL",
+                                    postalCode: "1040000",
+                                    countryCode: "CL",
+                                    residential: false,
+                                    streetLine1: "Calle Destino 123",
+                                    streetLine2: "Local / Bodega",
+                                    streetLine3: "Referencia Operativa"
+                                }
+                            },
+                            shipDate: "20-11-2026",
+                            serviceType: "FEDEX_PRIORITY",
+                            packagingType: "YOUR_PACKAGING",
+                            shippingChargesPayment: {
+                                paymentType: "SENDER",
+                                accountNumber: "[ACCOUNT_NUMBER]"
+                            },
+                            labelType: "ZPL",
+                            requestedPackageLineItems: [
+                                {
+                                    itemDescription: "Bulto 1 - Vestuario Retail",
+                                    weight: { value: 5.0, units: "KG" },
+                                    dimensions: { length: 40, width: 30, height: 25, units: "CM" }
+                                },
+                                {
+                                    itemDescription: "Bulto 2 - Vestuario Retail",
+                                    weight: { value: 5.0, units: "KG" },
+                                    dimensions: { length: 40, width: 30, height: 25, units: "CM" }
+                                }
+                            ],
+                            specialServicesRequested: {
+                                specialServiceTypes: [
+                                    "PSDR"
+                                ],
+                                documentsToReturn: [],
+                                customerDocsReference: "Documents Reference PSDR"
+                            },
+                            emailNotificationDetail: {
+                                aggregationType: "PER_SHIPMENT",
+                                recipients: [
+                                    {
+                                        emailNotificationRecipientType: "SHIPPER",
+                                        notificationFormatType: "HTML",
+                                        notificationEventType: ["ON_DELIVERY", "ON_ESTIMATED_DELIVERY", "ON_EXCEPTION"],
+                                        notificationType: "EMAIL",
+                                        emailAddress: "logistica@tricot.cl",
+                                        locale: "es_CL"
+                                    },
+                                    {
+                                        emailNotificationRecipientType: "RECIPIENT",
+                                        notificationFormatType: "HTML",
+                                        notificationEventType: ["ON_EXCEPTION", "ON_SHIPMENT"],
+                                        notificationType: "EMAIL",
+                                        emailAddress: "tienda.destino@tricot.cl",
+                                        locale: "es_CL"
+                                    }
+                                ]
+                            },
+                            clearanceDetail: {
+                                documentContent: "NON_DOCUMENTS",
+                                commodities: [
+                                    {
+                                        description: "Prendas de vestir retail",
+                                        countryOfManufacture: "CL",
+                                        numberOfPieces: 2,
+                                        weight: { value: 10.0, units: "KG" },
+                                        quantity: 20,
+                                        quantityUnits: "PCS",
+                                        unitPrice: { amount: 15000, currency: "CLP" }
+                                    }
+                                ]
+                            },
+                            references: [
+                                { customerReferenceType: "CUSTOMER_REFERENCE", value: "TRICOT-WMS-001" },
+                                { customerReferenceType: "INVOICE", value: "PENDIENTE-PSDR" },
+                                { customerReferenceType: "PURCHASE_ORDER", value: "PO-2026-889" },
+                                { customerReferenceType: "DEPARTMENT_NUMBER", value: "CD-STGO" }
+                            ],
+                            insuranceValue: {
+                                amount: 0.0,
+                                currency: "CLP"
+                            }
+                        },
+                        curl: `curl --location 'https://ws.fedex.com/LAC/ServicesAPI/ship/v1/shipments' \\
+  --header 'Cookie: siteDC=las' \\
+  --header 'Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]' \\
+  --header 'Content-Type: application/json' \\
+  --data '{"credential":{"accountNumber":"[ACCOUNT_NUMBER]"},"specialServicesRequested":{"specialServiceTypes":["PSDR"],"documentsToReturn":[],"customerDocsReference":"Documents Reference PSDR"}}'`,
+                        responsePayload: {
+                            transactionId: "tx-tricot-psdr-982341",
+                            output: {
+                                masterTrackingNumber: "[MASTER_TRACKING_NUMBER]",
+                                serviceType: "FEDEX_PRIORITY",
+                                specialServicesApplied: ["PSDR"],
+                                pendingDocumentRegistration: true,
+                                pieceResponses: [
+                                    {
+                                        pieceSequenceNumber: 1,
+                                        trackingNumber: "[MASTER_TRACKING_NUMBER]",
+                                        labelFormat: "ZPL",
+                                        encodedLabel: "^XA^FO50,50^ADN,36,20^FDTRICOT UNIFIED LABEL - Bulto 1/2^FS^XZ"
+                                    },
+                                    {
+                                        pieceSequenceNumber: 2,
+                                        trackingNumber: "[CHILD_TRACKING_NUMBER_2]",
+                                        labelFormat: "ZPL",
+                                        encodedLabel: "^XA^FO50,50^ADN,36,20^FDTRICOT UNIFIED LABEL - Bulto 2/2^FS^XZ"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    return: {
+                        filename: "ship_return_documents_request.json",
+                        businessRule: `
+                            <p><strong>Flujo Síncrono Alternativo:</strong> Se utiliza únicamente cuando el sistema origen ya dispone del número de folio del documento a retornar (ej. Guía de Despacho o Factura ya timbrada) <em>antes</em> de imprimir la etiqueta de transporte.</p>
+                            <p>Al incluir <code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 rounded">"RETURN_DOCUMENTS"</code> y el objeto <code class="font-mono text-xs">documentsToReturn</code> poblado, la guía nace vinculada inmediatamente sin requerir llamada posterior a <strong>AddDocuments</strong>.</p>
+                        `,
+                        validations: [
+                            "Autorizar con <code>Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]</code> del Paso 1A.",
+                            "Requiere al menos 1 objeto válido dentro de <code>documentsToReturn</code> (ej. <code>docType: \"CI\"</code>).",
+                            "No requiere invocar el Paso 3 (<code>AddDocuments</code>), salvo que se necesite anexar folios adicionales."
+                        ],
+                        highlightKeys: ['"RETURN_DOCUMENTS"', '"documentsToReturn"', '"docType"', '"docId"'],
+                        requestPayload: {
+                            credential: {
+                                accountNumber: "[ACCOUNT_NUMBER]",
+                                meterNumber: "[METER_NUMBER]",
+                                wskeyUserCredential: "[WS_USER_KEY]",
+                                wspasswordUserCredential: "[WS_PASSWORD_SECRET]"
+                            },
+                            shipper: {
+                                contact: {
+                                    personName: "Centro Distribución Tricot",
+                                    phoneNumber: "56220000000",
+                                    companyName: "Tricot Chile S.A.",
+                                    email: "despachos@tricot.cl",
+                                    vatNumber: "[RUT_EMISOR_TRICOT]"
+                                },
+                                address: {
+                                    city: "Santiago",
+                                    stateOrProvinceCode: "CL",
+                                    postalCode: "8320000",
+                                    countryCode: "CL",
+                                    residential: false,
+                                    streetLine1: "Av. Vicuña Mackenna 3600",
+                                    streetLine2: "Centro de Distribución"
+                                }
+                            },
+                            recipient: {
+                                contact: {
+                                    personName: "Sucursal / Cliente Destino",
+                                    phoneNumber: "56900000000",
+                                    companyName: "Tienda Tricot Destino",
+                                    email: "recepcion@tricot.cl",
+                                    vatNumber: "[RUT_RECEPTOR]"
+                                },
+                                address: {
+                                    city: "Santiago",
+                                    stateOrProvinceCode: "CL",
+                                    postalCode: "1040000",
+                                    countryCode: "CL",
+                                    residential: false,
+                                    streetLine1: "Calle Destino 123",
+                                    streetLine2: "Local / Bodega",
+                                    streetLine3: "Referencia Operativa"
+                                }
+                            },
+                            shipDate: "20-11-2026",
+                            serviceType: "FEDEX_PRIORITY",
+                            packagingType: "YOUR_PACKAGING",
+                            shippingChargesPayment: {
+                                paymentType: "SENDER",
+                                accountNumber: "[ACCOUNT_NUMBER]"
+                            },
+                            labelType: "ZPL",
+                            requestedPackageLineItems: [
+                                {
+                                    itemDescription: "Bulto 1 - Vestuario Retail",
+                                    weight: { value: 5.0, units: "KG" },
+                                    dimensions: { length: 40, width: 30, height: 25, units: "CM" }
+                                },
+                                {
+                                    itemDescription: "Bulto 2 - Vestuario Retail",
+                                    weight: { value: 5.0, units: "KG" },
+                                    dimensions: { length: 40, width: 30, height: 25, units: "CM" }
+                                }
+                            ],
+                            specialServicesRequested: {
+                                specialServiceTypes: [
+                                    "RETURN_DOCUMENTS"
+                                ],
+                                documentsToReturn: [
+                                    {
+                                        docType: "CI",
+                                        docId: "123456"
+                                    }
+                                ],
+                                customerDocsReference: "Documents Reference"
+                            },
+                            emailNotificationDetail: {
+                                aggregationType: "PER_SHIPMENT",
+                                recipients: [
+                                    {
+                                        emailNotificationRecipientType: "SHIPPER",
+                                        notificationFormatType: "HTML",
+                                        notificationEventType: ["ON_DELIVERY", "ON_ESTIMATED_DELIVERY", "ON_EXCEPTION"],
+                                        notificationType: "EMAIL",
+                                        emailAddress: "logistica@tricot.cl",
+                                        locale: "es_CL"
+                                    }
+                                ]
+                            },
+                            clearanceDetail: {
+                                documentContent: "NON_DOCUMENTS",
+                                commodities: [
+                                    {
+                                        description: "Prendas de vestir retail",
+                                        countryOfManufacture: "CL",
+                                        numberOfPieces: 2,
+                                        weight: { value: 10.0, units: "KG" },
+                                        quantity: 20,
+                                        quantityUnits: "PCS",
+                                        unitPrice: { amount: 15000, currency: "CLP" }
+                                    }
+                                ]
+                            },
+                            references: [
+                                { customerReferenceType: "CUSTOMER_REFERENCE", value: "TRICOT-WMS-001" },
+                                { customerReferenceType: "INVOICE", value: "123456" },
+                                { customerReferenceType: "PURCHASE_ORDER", value: "RD-1" },
+                                { customerReferenceType: "DEPARTMENT_NUMBER", value: "CD-STGO" }
+                            ],
+                            insuranceValue: {
+                                amount: 0.0,
+                                currency: "CLP"
+                            }
+                        },
+                        curl: `curl --location 'https://ws.fedex.com/LAC/ServicesAPI/ship/v1/shipments' \\
+  --header 'Cookie: siteDC=las' \\
+  --header 'Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]' \\
+  --header 'Content-Type: application/json' \\
+  --data '{"credential":{"accountNumber":"[ACCOUNT_NUMBER]"},"specialServicesRequested":{"specialServiceTypes":["RETURN_DOCUMENTS"],"documentsToReturn":[{"docType":"CI","docId":"123456"}],"customerDocsReference":"Documents Reference"}}'`,
+                        responsePayload: {
+                            transactionId: "tx-tricot-retdoc-441209",
+                            output: {
+                                masterTrackingNumber: "[MASTER_TRACKING_NUMBER]",
+                                serviceType: "FEDEX_PRIORITY",
+                                specialServicesApplied: ["RETURN_DOCUMENTS"],
+                                registeredDocuments: [
+                                    { docType: "CI", docId: "123456", status: "REGISTERED" }
+                                ],
+                                pieceResponses: [
+                                    {
+                                        pieceSequenceNumber: 1,
+                                        trackingNumber: "[MASTER_TRACKING_NUMBER]",
+                                        labelFormat: "ZPL",
+                                        encodedLabel: "^XA^FO50,50^ADN,36,20^FDTRICOT RETURN DOC - Bulto 1/2^FS^XZ"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+            3: {
+                stepLabel: "PASO 3 • CARRIL A",
+                trackBadge: "CARRIL A: FAPI LAC • BasicAuth",
+                trackColor: "purple",
+                title: "AddDocuments API — Registro Diferido de Guía de Carga",
+                subtitle: "Vinculación posterior de documentos al Master Tracking Number (Post-PSDR)",
+                method: "POST https://ws.fedex.com/LAC/ServicesAPI/ship/v1/shipments/documents",
+                filename: "add_documents_tricot_request.json",
+                highlightKeys: ['"trackingNumber"', '"documentsToReturn"', '"docType"', '"docId"'],
+                businessRule: `
+                    <p><strong>Paso Crítico en Tricot Chile:</strong> Una vez que los bultos ya cuentan con su etiqueta unificada pegada y el ERP/WMS emite la <strong>Guía de Carga</strong>, Guía de Despacho o Factura, se dispara este servicio en el dominio <strong>FAPI LAC</strong>.</p>
+                    <p>Permite asociar múltiples documentos (<code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 rounded">CI</code>, <code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 rounded">CINV</code>, <code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 rounded">NST</code>, <code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 rounded">SCS</code>) al <code class="font-mono text-xs">[MASTER_TRACKING_NUMBER]</code> creado en el Paso 2 con <code class="font-mono text-xs">PSDR</code>.</p>
+                `,
+                validations: [
+                    "Autenticar con el mismo <code>Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]</code> obtenido en el Paso 1A.",
+                    "El envío asociado al <code>trackingNumber</code> debe haber sido creado previamente con el tag <code>PSDR</code>.",
+                    "Debe ejecutarse <strong>antes</strong> de que el courier realice el escaneo de entrega final (POD)."
+                ],
+                requestPayload: {
+                    account: "[ACCOUNT_NUMBER]",
+                    trackingNumber: "[MASTER_TRACKING_NUMBER]",
+                    customerDocsReference: "GUIA-CARGA-TRICOT-2026",
+                    documentsToReturn: [
+                        {
+                            docType: "CI",
+                            docId: "123456"
+                        },
+                        {
+                            docType: "CINV",
+                            docId: "456AIIS787"
+                        },
+                        {
+                            docType: "NST",
+                            docId: "789451388-B"
+                        },
+                        {
+                            docType: "SCS",
+                            docId: "001588996"
+                        }
+                    ]
+                },
+                curl: `curl --location 'https://ws.fedex.com/LAC/ServicesAPI/ship/v1/shipments/documents' \\
+  --header 'Cookie: siteDC=las' \\
+  --header 'Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]' \\
+  --header 'Content-Type: application/json' \\
+  --data '{"account":"[ACCOUNT_NUMBER]","trackingNumber":"[MASTER_TRACKING_NUMBER]","customerDocsReference":"GUIA-CARGA-TRICOT-2026","documentsToReturn":[{"docType":"CI","docId":"123456"},{"docType":"CINV","docId":"456AIIS787"},{"docType":"NST","docId":"789451388-B"},{"docType":"SCS","docId":"001588996"}]}'`,
+                responsePayload: {
+                    transactionId: "tx-tricot-adddocs-774120",
+                    output: {
+                        trackingNumber: "[MASTER_TRACKING_NUMBER]",
+                        customerDocsReference: "GUIA-CARGA-TRICOT-2026",
+                        status: "DOCUMENTS_LINKED_SUCCESSFULLY",
+                        linkedDocumentsCount: 4,
+                        documentsSummary: [
+                            { docType: "CI", docId: "123456", returnRequired: true },
+                            { docType: "CINV", docId: "456AIIS787", returnRequired: true },
+                            { docType: "NST", docId: "789451388-B", returnRequired: true },
+                            { docType: "SCS", docId: "001588996", returnRequired: true }
+                        ]
+                    }
+                }
+            },
+            4: {
+                stepLabel: "PASO 4A • CARRIL A",
+                trackBadge: "CARRIL A: FAPI LAC • BasicAuth",
+                trackColor: "purple",
+                title: "Cancel Ship API — Anulación de Guía (Pre-Retiro)",
+                subtitle: "Invalidación lógica del envío y liberación de tracking antes de recolección física",
+                method: "PUT https://ws.fedex.com/LAC/ServicesAPI/ship/v1/shipments/cancel",
+                filename: "cancel_ship_request.json",
+                businessRule: `
+                    <p>Si un pedido de <strong>Tricot Chile</strong> sufre una modificación de última hora <strong>antes de ser retirado físicamente</strong> por FedEx (por ejemplo, cambio de bultos o anulación de orden en WMS), se invoca <strong>Cancel Ship</strong> dentro del dominio <strong>FAPI LAC</strong>.</p>
+                    <p>Si el envío ya fue recolectado y entregado en destino, ya no aplica cancelación y pasa al flujo de descarga de documento cedible en el <strong>Paso 4B</strong>.</p>
+                `,
+                validations: [
+                    "Autenticar con <code>Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]</code> (Carril A).",
+                    "Solo aplicable mientras el envío <strong>no</strong> tenga escaneo físico de recolección (<code>PU</code>).",
+                    "Enviar <code>deletionControl: \"DELETE_ALL_PACKAGES\"</code> para anular el envío multibulto completo."
+                ],
+                requestPayload: {
+                    accountNumber: {
+                        value: "[ACCOUNT_NUMBER]"
+                    },
+                    trackingNumber: "[MASTER_TRACKING_NUMBER]",
+                    deletionControl: "DELETE_ALL_PACKAGES",
+                    emailNotificationDetail: {
+                        emailAddress: "logistica@tricot.cl",
+                        type: "EMAILED"
+                    }
+                },
+                curl: `curl --location --request PUT 'https://ws.fedex.com/LAC/ServicesAPI/ship/v1/shipments/cancel' \\
+  --header 'Cookie: siteDC=las' \\
+  --header 'Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]' \\
+  --header 'Content-Type: application/json' \\
+  --data '{"accountNumber":{"value":"[ACCOUNT_NUMBER]"},"trackingNumber":"[MASTER_TRACKING_NUMBER]","deletionControl":"DELETE_ALL_PACKAGES"}'`,
+                responsePayload: {
+                    transactionId: "tx-tricot-cancel-901234",
+                    output: {
+                        cancelledShipment: true,
+                        cancelledHistory: true,
+                        successMessage: "Envío [MASTER_TRACKING_NUMBER] y sus documentos asociados han sido anulados correctamente."
+                    }
+                }
+            },
+            5: {
+                stepLabel: "PASO 4B • CARRIL A",
+                trackBadge: "CARRIL A: FAPI LAC • CDRM GetDocuments",
+                trackColor: "purple",
+                title: "Get Documents (CDRM) — Descarga de Cedible Digitalizado",
+                subtitle: "Recuperación de Factura, Guía de Despacho o Guía de Carga escaneada tras la entrega",
+                method: "POST https://ws.fedex.com/LAC/ServicesAPI/cdrm/api/docs/getDocuments",
+                filename: "get_documents_cdrm_cedible.json",
+                highlightKeys: ['"account"', '"searchType"', '"value"'],
+                businessRule: `
+                    <p><strong>Cierre Documental Post-Entrega:</strong> Una vez que el envío fue retirado por FedEx, entregado en destino (estado <code class="font-mono text-xs bg-emerald-100 text-emerald-800 px-1 rounded">DL</code>) y FedEx escanea y digitaliza el documento de retorno declarado (<strong>Factura, Guía de Despacho o Guía de Carga</strong>), Tricot puede descargarlo mediante este servicio.</p>
+                    <p>Consulta el repositorio documental regional <strong>CDRM</strong> (<code class="font-mono text-xs bg-purple-100 text-fedex-purple px-1 rounded">/LAC/ServicesAPI/cdrm/api/docs/getDocuments</code>) buscando por <code class="font-mono text-xs">"searchType": "AWB"</code> y el <code class="font-mono text-xs">[MASTER_TRACKING_NUMBER]</code>.</p>
+                `,
+                validations: [
+                    "Autenticar con <code>Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]</code> (mismo dominio <code>ws.fedex.com/LAC</code> del Carril A).",
+                    "Disponible únicamente después de que el envío haya sido <strong>entregado y digitalizado</strong> por FedEx.",
+                    "Enviar <code>\"searchType\": \"AWB\"</code> y en <code>\"value\"</code> indicar el <code>[MASTER_TRACKING_NUMBER]</code>."
+                ],
+                requestPayload: {
+                    account: "[ACCOUNT_NUMBER]",
+                    searchType: "AWB",
+                    value: "[MASTER_TRACKING_NUMBER]"
+                },
+                curl: `curl --location 'https://ws.fedex.com/LAC/ServicesAPI/cdrm/api/docs/getDocuments' \\
+  --header 'Authorization: Bearer [BEARER_TOKEN_FAPI_LAC]' \\
+  --header 'Cookie: siteDC=atl' \\
+  --header 'Content-Type: application/json' \\
+  --data '{
+    "account": "[ACCOUNT_NUMBER]",
+    "searchType": "AWB",
+    "value": "[MASTER_TRACKING_NUMBER]"
+}'`,
+                responsePayload: {
+                    transactionId: "tx-tricot-cdrm-getdocs-552910",
+                    status: "SUCCESS",
+                    account: "[ACCOUNT_NUMBER]",
+                    searchType: "AWB",
+                    value: "[MASTER_TRACKING_NUMBER]",
+                    documents: [
+                        {
+                            docType: "CI",
+                            docId: "123456",
+                            fileName: "CEDIBLE_123456_SIGNED.pdf",
+                            mimeType: "application/pdf",
+                            scanTimestamp: "2026-11-21T18:15:00-03:00",
+                            documentBase64: "[BASE64_SCANNED_RETURN_DOCUMENT_PDF]"
+                        }
+                    ]
+                }
+            },
+            6: {
+                stepLabel: "PASO 1B • CARRIL B",
+                trackBadge: "CARRIL B: APIS GLOBAL • Client Credentials",
+                trackColor: "sky",
+                title: "OAuth Client Credentials — Token Trazabilidad & POD",
+                subtitle: "Autenticación estándar OAuth 2.0 en apis.fedex.com para Tracking y Tracking Documents",
+                method: "POST https://apis.fedex.com/oauth/token",
+                filename: "oauth_track_client_credentials.txt",
+                businessRule: `
+                    <p>A diferencia de las operaciones de emisión y documentos del Carril A, las APIs de trazabilidad y descarga de POD residen en el dominio global <code class="font-mono text-xs bg-sky-100 text-sky-800 px-1 rounded">apis.fedex.com</code>.</p>
+                    <p>El middleware de <strong>Tricot Chile</strong> debe mantener un segundo gestor de sesión OAuth enviando <code class="font-mono text-xs">grant_type=client_credentials</code>, <code class="font-mono text-xs">[API_KEY_CLIENT_ID]</code> y <code class="font-mono text-xs">[API_KEY_SECRET]</code> para obtener <code class="font-mono text-xs">[BEARER_TOKEN_TRACK_APIS]</code>.</p>
+                `,
+                validations: [
+                    "Incluir cabecera <code>Cookie: siteDC=atl</code> y <code>Content-Type: application/x-www-form-urlencoded</code>.",
+                    "Enviar credenciales en el cuerpo URL-encoded: <code>grant_type</code>, <code>client_id</code> y <code>client_secret</code>.",
+                    "Utilizar el token resultante (<code>[BEARER_TOKEN_TRACK_APIS]</code>) en los Pasos 5 y 6 del Carril B."
+                ],
+                requestPayload: {
+                    grant_type: "client_credentials",
+                    client_id: "[API_KEY_CLIENT_ID]",
+                    client_secret: "[API_KEY_SECRET]"
+                },
+                curl: `curl --location 'https://apis.fedex.com/oauth/token' \\
+  --header 'Cookie: siteDC=atl' \\
+  --header 'Content-Type: application/x-www-form-urlencoded' \\
+  --data-urlencode 'grant_type=client_credentials' \\
+  --data-urlencode 'client_id=[API_KEY_CLIENT_ID]' \\
+  --data-urlencode 'client_secret=[API_KEY_SECRET]'`,
+                responsePayload: {
+                    access_token: "[BEARER_TOKEN_TRACK_APIS]",
+                    token_type: "bearer",
+                    expires_in: 3600,
+                    scope: "CXS-TP"
+                }
+            },
+            7: {
+                stepLabel: "PASO 5 • CARRIL B",
+                trackBadge: "CARRIL B: APIS GLOBAL • Client Credentials",
+                trackColor: "sky",
+                title: "Tracking API — Trazabilidad de Hitos AWB / Transporte",
+                subtitle: "Monitoreo en tiempo real del Master Tracking Number generado en el Carril A",
+                method: "POST https://apis.fedex.com/track/v1/trackingnumbers",
+                filename: "tracking_pod_request.json",
+                businessRule: `
+                    <p>Utilizando el <code class="font-mono text-xs bg-orange-100 text-fedex-orange px-1 rounded">[MASTER_TRACKING_NUMBER]</code> obtenido en el Paso 2 y el token <code class="font-mono text-xs bg-sky-100 text-sky-800 px-1 rounded">[BEARER_TOKEN_TRACK_APIS]</code> del Paso 1B, Tricot consulta los hitos de transporte.</p>
+                    <p>Al detectarse el estado de entrega final <code class="font-mono text-xs bg-emerald-100 text-emerald-800 px-1 rounded">DL (Delivered)</code>, se habilita tanto la captura de POD (Paso 6) como la descarga del cedible escaneado en CDRM (Paso 4B).</p>
+                `,
+                validations: [
+                    "Autenticar con <code>Authorization: Bearer [BEARER_TOKEN_TRACK_APIS]</code> (Carril B).",
+                    "Enviar <code>includeDetailedScans: true</code> para obtener la cronología completa por bulto.",
+                    "Detona la descarga de <code>SIGNATURE_PROOF_OF_DELIVERY</code> y el cedible CDRM una vez confirmado <code>DL</code>."
+                ],
+                requestPayload: {
+                    includeDetailedScans: true,
+                    trackingInfo: [
+                        {
+                            trackingNumberInfo: {
+                                trackingNumber: "[MASTER_TRACKING_NUMBER]"
+                            }
+                        }
+                    ]
+                },
+                curl: `curl --location 'https://apis.fedex.com/track/v1/trackingnumbers' \\
+  --header 'Cookie: siteDC=atl' \\
+  --header 'Authorization: Bearer [BEARER_TOKEN_TRACK_APIS]' \\
+  --header 'Content-Type: application/json' \\
+  --data '{"includeDetailedScans":true,"trackingInfo":[{"trackingNumberInfo":{"trackingNumber":"[MASTER_TRACKING_NUMBER]"}}]}'`,
+                responsePayload: {
+                    transactionId: "tx-tricot-track-330192",
+                    output: {
+                        completeTrackResults: [
+                            {
+                                trackingNumber: "[MASTER_TRACKING_NUMBER]",
+                                latestStatusDetail: {
+                                    code: "DL",
+                                    derivedCode: "DL",
+                                    statusByLocale: "Entregado",
+                                    description: "Entregado - Cedible y Guía de Carga firmados"
+                                },
+                                deliveryDetails: {
+                                    receivedByName: "RECEPCION TIENDA TRICOT",
+                                    actualDeliveryTimestamp: "2026-11-21T15:42:00-03:00"
+                                },
+                                scanEvents: [
+                                    { eventType: "PU", eventDescription: "Recolectado en CD Tricot", city: "Santiago" },
+                                    { eventType: "IT", eventDescription: "En tránsito a destino", city: "Santiago" },
+                                    { eventType: "DL", eventDescription: "Entregado con retorno documental", city: "Santiago" }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            },
+            8: {
+                stepLabel: "PASO 6 • CARRIL B",
+                trackBadge: "CARRIL B: APIS GLOBAL • Client Credentials",
+                trackColor: "sky",
+                title: "Capture POD / Tracking Documents — Comprobante de Entrega",
+                subtitle: "Descarga oficial de SIGNATURE_PROOF_OF_DELIVERY en formato PDF o PNG",
+                method: "POST https://apis.fedex.com/track/v1/trackingdocuments",
+                modes: {
+                    pdf: {
+                        filename: "capture_pod_pdf_request.json",
+                        highlightKeys: ['"documentType"', '"documentFormat"', '"carrierCode"', '"accountNumber"'],
+                        businessRule: `
+                            <p><strong>Captura de POD en Formato PDF (Recomendado Auditoría):</strong> Invoca <code class="font-mono text-xs bg-sky-100 text-sky-800 px-1 rounded">/track/v1/trackingdocuments</code> usando el token del Carril B (<code class="font-mono text-xs">[BEARER_TOKEN_TRACK_APIS]</code>) y cabecera <code class="font-mono text-xs">Cookie: siteDC=atl</code>.</p>
+                            <p>Incluye <code class="font-mono text-xs">carrierCode: "FDXE"</code> y <code class="font-mono text-xs">accountNumber: "[ACCOUNT_NUMBER]"</code> para obtener el documento oficial firmado en PDF listo para archivar en el ERP de Tricot Chile.</p>
+                        `,
+                        validations: [
+                            "Autenticar con <code>Authorization: Bearer [BEARER_TOKEN_TRACK_APIS]</code> y <code>Cookie: siteDC=atl</code>.",
+                            "Definir <code>documentType: \"SIGNATURE_PROOF_OF_DELIVERY\"</code> y <code>documentFormat: \"PDF\"</code>.",
+                            "Incluir <code>carrierCode: \"FDXE\"</code> y <code>accountNumber: \"[ACCOUNT_NUMBER]\"</code> dentro de <code>trackDocumentSpecification</code>."
+                        ],
+                        requestPayload: {
+                            trackDocumentDetail: {
+                                documentType: "SIGNATURE_PROOF_OF_DELIVERY",
+                                documentFormat: "PDF"
+                            },
+                            trackDocumentSpecification: [
+                                {
+                                    trackingNumberInfo: {
+                                        trackingNumber: "[MASTER_TRACKING_NUMBER]",
+                                        carrierCode: "FDXE"
+                                    },
+                                    accountNumber: "[ACCOUNT_NUMBER]"
+                                }
+                            ]
+                        },
+                        curl: `curl --location 'https://apis.fedex.com/track/v1/trackingdocuments' \\
+  --header 'Authorization: Bearer [BEARER_TOKEN_TRACK_APIS]' \\
+  --header 'Cookie: siteDC=atl' \\
+  --header 'Content-Type: application/json' \\
+  --data '{
+    "trackDocumentDetail": {
+        "documentType": "SIGNATURE_PROOF_OF_DELIVERY",
+        "documentFormat": "PDF"
+    },
+    "trackDocumentSpecification": [
+        {
+            "trackingNumberInfo": {
+                "trackingNumber": "[MASTER_TRACKING_NUMBER]",
+                "carrierCode": "FDXE"
+            },
+            "accountNumber": "[ACCOUNT_NUMBER]"
+        }
+    ]
+}'`,
+                        responsePayload: {
+                            transactionId: "tx-tricot-pod-pdf-884120",
+                            output: {
+                                localization: { languageCode: "es", localeCode: "CL" },
+                                documentType: "SIGNATURE_PROOF_OF_DELIVERY",
+                                documentFormat: "PDF",
+                                documents: [
+                                    {
+                                        trackingNumber: "[MASTER_TRACKING_NUMBER]",
+                                        carrierCode: "FDXE",
+                                        contentBase64: "[BASE64_PDF_STREAM_SIGNATURE_PROOF_OF_DELIVERY]"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    png: {
+                        filename: "capture_pod_png_simplified_request.json",
+                        highlightKeys: ['"documentType"', '"documentFormat"', '"trackingNumber"'],
+                        businessRule: `
+                            <p><strong>Captura de POD en Formato PNG (Payload Simplificado):</strong> Variante ligera de consulta donde solo se envía el <code class="font-mono text-xs">[MASTER_TRACKING_NUMBER]</code> sin requerir <code>carrierCode</code> ni <code>accountNumber</code> explícitos.</p>
+                            <p>Ideal para previsualización rápida de imagen en portales internos de atención al cliente o seguimiento operativo de Tricot Chile.</p>
+                        `,
+                        validations: [
+                            "Autenticar con <code>Authorization: Bearer [BEARER_TOKEN_TRACK_APIS]</code> y <code>Cookie: siteDC=atl</code>.",
+                            "Definir <code>documentType: \"SIGNATURE_PROOF_OF_DELIVERY\"</code> y <code>documentFormat: \"PNG\"</code>.",
+                            "Requiere únicamente <code>trackingNumberInfo.trackingNumber</code> en <code>trackDocumentSpecification</code>."
+                        ],
+                        requestPayload: {
+                            trackDocumentSpecification: [
+                                {
+                                    trackingNumberInfo: {
+                                        trackingNumber: "[MASTER_TRACKING_NUMBER]"
+                                    }
+                                }
+                            ],
+                            trackDocumentDetail: {
+                                documentType: "SIGNATURE_PROOF_OF_DELIVERY",
+                                documentFormat: "PNG"
+                            }
+                        },
+                        curl: `curl --location 'https://apis.fedex.com/track/v1/trackingdocuments' \\
+  --header 'Authorization: Bearer [BEARER_TOKEN_TRACK_APIS]' \\
+  --header 'Cookie: siteDC=atl' \\
+  --header 'Content-Type: application/json' \\
+  --data '{
+    "trackDocumentSpecification": [
+        {
+            "trackingNumberInfo": {
+                "trackingNumber": "[MASTER_TRACKING_NUMBER]"
+            }
+        }
+    ],
+    "trackDocumentDetail": {
+        "documentType": "SIGNATURE_PROOF_OF_DELIVERY",
+        "documentFormat": "PNG"
+    }
+}'`,
+                        responsePayload: {
+                            transactionId: "tx-tricot-pod-png-884121",
+                            output: {
+                                localization: { languageCode: "es", localeCode: "CL" },
+                                documentType: "SIGNATURE_PROOF_OF_DELIVERY",
+                                documentFormat: "PNG",
+                                documents: [
+                                    {
+                                        trackingNumber: "[MASTER_TRACKING_NUMBER]",
+                                        contentBase64: "[BASE64_PNG_IMAGE_STREAM_SIGNATURE_PROOF_OF_DELIVERY]"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        // Función de resaltado de sintaxis JSON con soporte para líneas destacadas
+        function syntaxHighlightJson(jsonObj, highlightKeys = []) {
+            const jsonStr = JSON.stringify(jsonObj, null, 2);
+            const lines = jsonStr.split('\n');
+
+            return lines.map(line => {
+                // Escapar caracteres HTML
+                let escaped = line
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+
+                // Colorear tokens JSON
+                escaped = escaped.replace(
+                    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+                    function (match) {
+                        let cls = 'json-number';
+                        if (/^"/.test(match)) {
+                            if (/:$/.test(match)) {
+                                cls = 'json-key';
+                            } else {
+                                cls = 'json-string';
+                            }
+                        } else if (/true|false/.test(match)) {
+                            cls = 'json-boolean';
+                        }
+                        return `<span class="${cls}">${match}</span>`;
+                    }
+                );
+
+                // Resaltar líneas clave para comparación educativa
+                const shouldHighlight = highlightKeys.some(key => line.includes(key));
+                if (shouldHighlight) {
+                    return `<span class="json-highlight">${escaped}</span>`;
+                }
+                return escaped;
+            }).join('\n');
+        }
+
+        // Renderiza el estado actual del explorador
+        function renderUI() {
+            // 1. Actualizar tarjetas del stepper (8 pasos en total: 1..5 Carril A, 6..8 Carril B)
+            for (let i = 1; i <= 8; i++) {
+                const card = document.getElementById(`step-card-${i}`);
+                const badge = document.getElementById(`step-badge-${i}`);
+                const svgNode = document.getElementById(`svg-node-${i}`);
+                const isTrackB = i >= 6;
+
+                if (i === currentStep) {
+                    if (isTrackB) {
+                        card.className = "step-card text-left p-3.5 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-sky-50 border-sky-600 shadow-md";
+                        badge.className = "px-2 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-sky-700 text-white";
+                    } else {
+                        card.className = "step-card text-left p-3.5 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-fedex-purpleLight/70 border-fedex-purple shadow-md step-active-glow";
+                        badge.className = "px-2 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-fedex-purple text-white";
+                    }
+                    if (svgNode) {
+                        svgNode.setAttribute("stroke", "#FF6200");
+                        svgNode.setAttribute("stroke-width", "3");
+                    }
+                } else {
+                    card.className = "step-card text-left p-3.5 rounded-xl border-2 transition-all duration-200 flex flex-col justify-between bg-white border-slate-200 hover:border-slate-300";
+                    badge.className = "px-2 h-6 rounded-md flex items-center justify-center text-xs font-bold bg-slate-100 text-slate-600";
+                    if (svgNode) {
+                        const defaultStroke = i === 1 ? "#7E22CE" : i === 3 ? "#A855F7" : i === 5 ? "#10B981" : (i === 6 || i === 7) ? "#0284C7" : i === 8 ? "#10B981" : "#475569";
+                        svgNode.setAttribute("stroke", defaultStroke);
+                        svgNode.setAttribute("stroke-width", "2");
+                    }
+                }
+            }
+
+            const step = stepsData[currentStep];
+            let activeData = step;
+            if (currentStep === 2) {
+                activeData = step.modes[currentShipTab];
+            } else if (currentStep === 8) {
+                activeData = step.modes[currentPodTab];
+            }
+
+            // 2. Actualizar textos y badges de carril en el panel izquierdo
+            const stepPill = document.getElementById('detail-step-pill');
+            const trackBadge = document.getElementById('detail-track-badge');
+            stepPill.textContent = step.stepLabel;
+            trackBadge.textContent = step.trackBadge;
+
+            if (step.trackColor === 'sky') {
+                stepPill.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-sky-700 text-white";
+                trackBadge.className = "inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold bg-sky-50 text-sky-800 border border-sky-200";
+            } else {
+                stepPill.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-fedex-purple text-white";
+                trackBadge.className = "inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 text-fedex-purple border border-purple-200";
+            }
+
+            document.getElementById('detail-method-badge').textContent = step.method;
+            document.getElementById('detail-title').textContent = step.title;
+            document.getElementById('detail-subtitle').textContent = step.subtitle;
+            document.getElementById('diagram-active-label').textContent = `Activo: ${step.stepLabel} — ${step.title.split('—')[0].trim()}`;
+
+            // Mostrar u ocultar selector PSDR vs RETURN_DOCUMENTS en el Paso 2
+            const modeSelector = document.getElementById('ship-mode-selector');
+            if (currentStep === 2) {
+                modeSelector.classList.remove('hidden');
+                const btnPsdr = document.getElementById('tab-btn-psdr');
+                const btnReturn = document.getElementById('tab-btn-return');
+                if (currentShipTab === 'psdr') {
+                    btnPsdr.className = "py-2 px-3 rounded-lg text-xs font-bold transition-all bg-fedex-purple text-white shadow-sm flex flex-col items-center";
+                    btnReturn.className = "py-2 px-3 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex flex-col items-center";
+                } else {
+                    btnReturn.className = "py-2 px-3 rounded-lg text-xs font-bold transition-all bg-fedex-purple text-white shadow-sm flex flex-col items-center";
+                    btnPsdr.className = "py-2 px-3 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex flex-col items-center";
+                }
+            } else {
+                modeSelector.classList.add('hidden');
+            }
+
+            // Mostrar u ocultar selector PDF vs PNG en el Paso 6 (índice 8: Capture POD)
+            const podSelector = document.getElementById('pod-mode-selector');
+            if (currentStep === 8) {
+                podSelector.classList.remove('hidden');
+                const btnPdf = document.getElementById('tab-btn-pod-pdf');
+                const btnPng = document.getElementById('tab-btn-pod-png');
+                if (currentPodTab === 'pdf') {
+                    btnPdf.className = "py-2 px-3 rounded-lg text-xs font-bold transition-all bg-sky-700 text-white shadow-sm flex flex-col items-center";
+                    btnPng.className = "py-2 px-3 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex flex-col items-center";
+                } else {
+                    btnPng.className = "py-2 px-3 rounded-lg text-xs font-bold transition-all bg-sky-700 text-white shadow-sm flex flex-col items-center";
+                    btnPdf.className = "py-2 px-3 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 flex flex-col items-center";
+                }
+            } else {
+                podSelector.classList.add('hidden');
+            }
+
+            document.getElementById('detail-business-rule').innerHTML = activeData.businessRule;
+
+            const validationsEl = document.getElementById('detail-validations');
+            validationsEl.innerHTML = activeData.validations.map(item => `
+                <li class="flex items-start gap-2 bg-slate-50/70 p-2.5 rounded-lg border border-slate-100">
+                    <span class="text-fedex-orange font-bold mt-0.5">✓</span>
+                    <span>${item}</span>
+                </li>
+            `).join('');
+
+            // 3. Actualizar pestañas Request vs Response 200 OK
+            const btnReq = document.getElementById('view-btn-request');
+            const btnRes = document.getElementById('view-btn-response');
+
+            if (currentCodeView === 'request') {
+                btnReq.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-fedex-purple text-white transition";
+                btnRes.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1.5";
+                document.getElementById('code-filename').textContent = activeData.filename;
+                document.getElementById('code-display').innerHTML = syntaxHighlightJson(
+                    activeData.requestPayload,
+                    activeData.highlightKeys || []
+                );
+            } else {
+                btnRes.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 text-white transition flex items-center gap-1.5";
+                btnReq.className = "px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition";
+                document.getElementById('code-filename').textContent = activeData.filename.replace('_request.json', '_response_200.json').replace('.txt', '_response_200.json');
+                document.getElementById('code-display').innerHTML = syntaxHighlightJson(activeData.responsePayload, []);
+            }
+        }
+
+        // Controladores de navegación
+        function selectStep(stepNum) {
+            currentStep = stepNum;
+            currentCodeView = 'request';
+            renderUI();
+        }
+
+        function prevStep() {
+            currentStep = currentStep > 1 ? currentStep - 1 : 8;
+            currentCodeView = 'request';
+            renderUI();
+        }
+
+        function nextStep() {
+            currentStep = currentStep < 8 ? currentStep + 1 : 1;
+            currentCodeView = 'request';
+            renderUI();
+        }
+
+        function switchShipTab(tab) {
+            currentShipTab = tab;
+            renderUI();
+        }
+
+        function switchPodTab(tab) {
+            currentPodTab = tab;
+            renderUI();
+        }
+
+        function switchCodeView(view) {
+            currentCodeView = view;
+            renderUI();
+        }
+
+        function getActiveStepData() {
+            const step = stepsData[currentStep];
+            if (currentStep === 2) return step.modes[currentShipTab];
+            if (currentStep === 8) return step.modes[currentPodTab];
+            return step;
+        }
+
+        function copyToClipboard(text, successMsg) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast(successMsg);
+            } catch (err) {
+                showToast('No se pudo copiar automáticamente');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function copyCurrentJson() {
+            const activeData = getActiveStepData();
+            const obj = currentCodeView === 'request' ? activeData.requestPayload : activeData.responsePayload;
+            copyToClipboard(JSON.stringify(obj, null, 2), 'Payload formateado copiado al portapapeles');
+        }
+
+        function copyCurrentCurl() {
+            const activeData = getActiveStepData();
+            copyToClipboard(activeData.curl, 'Comando cURL sanitizado copiado al portapapeles');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            toastMsg.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2600);
+        }
+
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Inicializar portal al cargar
+        window.onload = function () {
+            renderUI();
+        };
+    </script>
+</body>
+</html>
